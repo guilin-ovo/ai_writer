@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { AppState, Project, Character, Organization, Worldview, Outline, Volume, Chapter, ApiConfig, WritingStyle, Foreshadow } from './types';
+import { getItem, setItem } from './localStorageService.ts';
 
 const STORAGE_KEY = 'ai_author_data';
 
@@ -7,40 +8,35 @@ const generateId = () => Date.now().toString(36) + Math.random().toString(36).su
 
 const getInitialState = (): AppState => {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsedState = JSON.parse(saved);
-      // 数据迁移：为已有项目添加默认的writingStyles
-      if (parsedState.projects && Array.isArray(parsedState.projects)) {
-        parsedState.projects = parsedState.projects.map((project: any) => {
-          const newProject = { ...project };
-          if (!newProject.writingStyles) {
-            newProject.writingStyles = getPresetWritingStyles();
-            newProject.selectedWritingStyleId = undefined;
-          }
-          if (!newProject.foreshadows) {
-            newProject.foreshadows = [];
-          }
-          return newProject;
-        });
-      }
-      return parsedState;
-    }
+    // 初始状态，后续会通过异步加载更新
+    return {
+      projects: [],
+      currentProjectId: null,
+      apiConfigs: [],
+    };
   } catch (e) {
-    console.error('Failed to load data:', e);
+    console.error('Failed to initialize state:', e);
+    return {
+      projects: [],
+      currentProjectId: null,
+      apiConfigs: [],
+    };
   }
-  return {
-    projects: [],
-    currentProjectId: null,
-    apiConfigs: [],
-  };
 };
 
-const saveState = (state: AppState) => {
+const saveState = async (state: AppState) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    console.log('=== [store.ts] Saving state to storage... ===');
+    console.log('State to save:', { 
+      projectsCount: state.projects.length, 
+      currentProjectId: state.currentProjectId,
+      apiConfigsCount: state.apiConfigs.length
+    });
+    console.log('STORAGE_KEY:', STORAGE_KEY);
+    await setItem(STORAGE_KEY, state);
+    console.log('=== [store.ts] State saved successfully ===');
   } catch (e) {
-    console.error('Failed to save data:', e);
+    console.error('=== [store.ts] Failed to save data ===', e);
   }
 };
 
@@ -142,9 +138,84 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState<AppState>(getInitialState);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // 异步加载数据
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        console.log('=== [store.ts] Loading data... ===');
+        console.log('STORAGE_KEY:', STORAGE_KEY);
+        const saved = await getItem(STORAGE_KEY);
+        console.log('=== [store.ts] Loaded data:', saved ? { projectsCount: saved.projects?.length } : null, '===');
+        if (saved) {
+          // 数据迁移：为已有项目添加默认的writingStyles
+          if (saved.projects && Array.isArray(saved.projects)) {
+            saved.projects = saved.projects.map((project: any) => {
+              const newProject = { ...project };
+              if (!newProject.writingStyles) {
+                newProject.writingStyles = getPresetWritingStyles();
+                newProject.selectedWritingStyleId = undefined;
+              }
+              if (!newProject.foreshadows) {
+                newProject.foreshadows = [];
+              }
+              return newProject;
+            });
+          }
+          setState(saved);
+          console.log('=== [store.ts] State updated from loaded data ===');
+        } else {
+          console.log('=== [store.ts] No saved data found ===');
+        }
+      } catch (e) {
+        console.error('=== [store.ts] Failed to load data ===', e);
+      } finally {
+        setIsDataLoaded(true);
+        console.log('=== [store.ts] Data loading complete, isDataLoaded set to true ===');
+      }
+    };
+
+    loadData();
+  }, []);
 
   useEffect(() => {
-    saveState(state);
+    // 只有在数据加载完成后才开始保存
+    if (!isDataLoaded) {
+      console.log('=== [store.ts] Skipping save - data not loaded yet ===');
+      return;
+    }
+
+    console.log('=== [store.ts] Data loaded, starting to watch for state changes ===');
+    
+    // 状态变化时保存数据
+    const saveTimeout = setTimeout(() => {
+      saveState(state);
+    }, 100); // 防抖，避免频繁保存
+    
+    // 组件卸载时保存数据
+    return () => {
+      clearTimeout(saveTimeout);
+      console.log('Component unmounting, saving final state...');
+      saveState(state);
+    };
+  }, [state, isDataLoaded]);
+
+  // 在 Electron 环境中，监听窗口关闭事件，确保数据保存
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electron) {
+      const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+        console.log('Window closing, saving data...');
+        await saveState(state);
+        console.log('Data saved before window close');
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
   }, [state]);
 
   const currentProject = state.currentProjectId

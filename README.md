@@ -57,8 +57,14 @@
 - 兼容 OpenAI 格式的 API
 
 ### 💾 数据持久化
-- 所有数据自动保存到浏览器本地存储
-- 刷新页面数据不丢失
+- **本地文件存储**：数据保存在项目根目录的 `storage/local.json.gz` 文件中（gzip 压缩格式）
+- **跨环境支持**：支持浏览器、Node.js 和 Electron 环境
+- **数据压缩**：使用 gzip 压缩，减小文件大小
+
+### 🖥️ Electron 支持
+- 支持桌面应用运行
+- 离线使用，数据本地存储
+- 更好的系统集成
 
 ## 使用流程
 
@@ -105,14 +111,24 @@
 npm install
 ```
 
-### 2. 启动开发服务器
+### 2. 启动开发服务器（浏览器模式）
 ```bash
 npm run dev
 ```
 
-### 3. 构建生产版本
+### 3. 启动 Electron 应用（桌面模式）
+```bash
+npm run electron:dev
+```
+
+### 4. 构建生产版本
 ```bash
 npm run build
+```
+
+### 5. 构建 Electron 应用
+```bash
+npm run electron:build
 ```
 
 ## 技术栈
@@ -120,12 +136,39 @@ npm run build
 - React 18
 - TypeScript
 - Vite
+- Electron
 - 纯 CSS（无额外 UI 库）
-- LocalStorage 数据持久化
+- **本地文件存储**（gzip 压缩）
+- **跨环境支持**（浏览器、Node.js、Electron）
 
 ## 注意事项
 
-- 数据保存在浏览器的 LocalStorage 中，清除浏览器数据会丢失
-- 建议定期备份重要数据
+- 数据保存在项目根目录的 `storage/local.json.gz` 文件中
+- **storage 文件夹会被上传到 Git**，但其中的文件（包括 `local.json.gz`）不会被上传
+- 建议定期备份 `local.json.gz` 文件到其他位置
 - 需要有效的 API Key 才能使用 AI 功能
 - 支持任何兼容 OpenAI API 格式的服务
+- Electron 应用提供更好的离线使用体验
+
+## 存储说明
+
+- **存储位置**：`storage/local.json.gz`
+- **存储格式**：gzip 压缩的 JSON 文件
+- **文件大小**：压缩后通常比原始 JSON 小 70-90%
+- **跨环境**：在浏览器、Node.js 和 Electron 环境中都能使用
+- **自动保存**：所有操作都会自动保存到本地文件
+
+## 常见问题
+
+### 项目在重新打开后消失？
+- 确保使用 `npm run electron:dev` 启动应用
+- 检查 `storage` 文件夹是否存在
+- 检查 `storage/local.json.gz` 文件是否被创建
+
+### 存储文件过大？
+- 存储文件使用 gzip 压缩，已经大幅减小体积
+- 如仍有问题，可以手动清理不需要的项目数据
+
+### 如何备份数据？
+- 复制 `storage/local.json.gz` 文件到安全位置
+- 需要恢复时，将备份文件复制回 `storage` 文件夹

@@ -10,7 +10,12 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-electron
 *.local
+
+# Storage folder - upload the folder but not its contents
+storage/
+!storage/.gitkeep
 
 # Editor directories and files
 .vscode/*
