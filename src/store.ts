@@ -204,7 +204,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   // 在 Electron 环境中，监听窗口关闭事件，确保数据保存
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).electron) {
-      const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      const handleBeforeUnload = async (_e: BeforeUnloadEvent) => {
         console.log('Window closing, saving data...');
         await saveState(state);
         console.log('Data saved before window close');

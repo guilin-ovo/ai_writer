@@ -121,7 +121,7 @@ export const setItem = async (key: string, value: any): Promise<void> => {
     // 在Node.js环境中使用fs
     ensureStorageDir();
     try {
-      let data = {};
+      let data: Record<string, any> = {};
       if (fs.existsSync(STORAGE_FILE)) {
         const buffer = fs.readFileSync(STORAGE_FILE);
         data = decompressData(buffer);

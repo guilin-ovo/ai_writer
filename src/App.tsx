@@ -6,7 +6,7 @@ import { ApiConfigPanel } from './components/ApiConfigPanel';
 import './App.css';
 
 const AppContent = () => {
-  const { currentProject, state } = useStore();
+  const { currentProject } = useStore();
   const [activeTab, setActiveTab] = useState<'projects' | 'settings'>('projects');
 
   if (!currentProject) {

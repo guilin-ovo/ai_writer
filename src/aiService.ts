@@ -39,7 +39,7 @@ export const generateWithAI = async (
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let result = '';
-      let inReasoning = false; // 标记当前是否处于模型“思考”阶段，用于过滤 reasoning_content
+      // let inReasoning = false; // 标记当前是否处于模型"思考"阶段，用于过滤 reasoning_content
 
       if (reader) {
         while (true) {
@@ -52,13 +52,13 @@ export const generateWithAI = async (
               const data = JSON.parse(line.replace('data: ', ''));
               const delta = data.choices[0]?.delta;
               
-              if (delta?.reasoning_content) {
-                inReasoning = true;
-                continue;
-              }
+              // if (delta?.reasoning_content) {
+              //   inReasoning = true;
+              //   continue;
+              // }
               
               if (delta?.content) {
-                inReasoning = false;
+                // inReasoning = false;
                 result += delta.content;
                 onProgress(result);
               }

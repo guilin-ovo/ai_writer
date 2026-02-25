@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { Character, Outline, Volume, Chapter, WritingStyle, Foreshadow } from '../types';
+import { Character, Volume, Chapter } from '../types';
 import {
   generateWithAI,
   generateCharacterPrompt,
@@ -31,7 +31,6 @@ export const ProjectDashboard = () => {
     deleteWorldview,
     addOutline,
     updateOutline,
-    deleteOutline,
     addVolume,
     updateVolume,
     deleteVolume,

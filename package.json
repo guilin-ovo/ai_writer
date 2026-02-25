@@ -9,7 +9,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && electron-builder --win --dir --publish never"
   },
   "dependencies": {
     "electron-store": "^11.0.2",
@@ -34,8 +34,17 @@
       "output": "dist-electron"
     },
     "files": [
-      "dist/**/*",
-      "electron/**/*"
-    ]
+      {
+        "from": "electron",
+        "to": "electron",
+        "filter": ["**/*"]
+      },
+      "package.json"
+    ],
+    "asar": false,
+    "win": {
+      "target": "dir",
+      "signAndEditExecutable": false
+    }
   }
 }

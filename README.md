@@ -131,6 +131,8 @@ npm run build
 npm run electron:build
 ```
 
+构建后的应用位于 `dist-electron/win-unpacked/` 目录。
+
 ## 技术栈
 
 - React 18
