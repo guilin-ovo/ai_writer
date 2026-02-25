@@ -87,7 +87,7 @@ function createWindow() {
   });
 
   if (app.isPackaged) {
-    let indexPath = path.join(__dirname, 'dist/index.html');
+    let indexPath = path.join(__dirname, '../dist/index.html');
     console.log('Loading from:', indexPath);
     console.log('File exists:', fs.existsSync(indexPath));
     console.log('__dirname:', __dirname);
