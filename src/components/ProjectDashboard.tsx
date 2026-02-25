@@ -798,7 +798,7 @@ export const ProjectDashboard = () => {
                         name: org.name,
                         type: org.type || '',
                         leader: org.leader || '',
-                        members: org.members?.join(', ') || '',
+                        members: Array.isArray(org.members) ? org.members.join(', ') : org.members || '',
                         description: org.description || '',
                         history: org.history || '',
                         location: org.location || '',
