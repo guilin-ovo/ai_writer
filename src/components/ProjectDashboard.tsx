@@ -515,7 +515,7 @@ export const ProjectDashboard = () => {
     setIsGenerating(true);
     setGeneratedContent('');
     try {
-      const prompt = generateOptimizeContentPrompt(chapterContent, writingStyle);
+      const prompt = generateOptimizeContentPrompt(chapterContent, writingStyle, aiHint);
       const result = await generateWithAI(apiConfig, prompt, setGeneratedContent);
       setOptimizedContent(result);
       setShowOptimization(true);

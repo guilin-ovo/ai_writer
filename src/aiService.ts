@@ -444,7 +444,7 @@ ${unresolvedForeshadows.length > 0 ? `如果在本章节中某个未回收的伏
 - 请在resolutionDescription中说明伏笔是如何被回收的` : '本章节没有需要追踪的未回收伏笔。'}`;
 };
 
-export const generateOptimizeContentPrompt = (originalContent: string, writingStyle: WritingStyle) => {
+export const generateOptimizeContentPrompt = (originalContent: string, writingStyle: WritingStyle, hints?: string) => {
   return `请优化以下文章，使其符合参考的文笔风格。
 
 【参考的文笔风格例句】：
@@ -453,7 +453,10 @@ ${writingStyle.examples.map((example, i) => `${i + 1}. ${example}`).join('\n')}
 【原文】：
 ${originalContent}
 
-请根据以上参考例句的风格，优化原文。要求：
+${hints ? `【特别要求（优先度最高）】：
+${hints}
+
+` : ''}请根据以上参考例句的风格，优化原文。要求：
 1. 保持原文的核心内容和情节不变
 2. 调整文笔风格，使其与参考例句一致
 3. 优化后的内容要流畅自然

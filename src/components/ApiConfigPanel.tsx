@@ -114,10 +114,28 @@ export const ApiConfigPanel = () => {
                 value={newConfig.provider}
                 onChange={(e) => {
                   const selectedProvider = providers.find(p => p.value === e.target.value);
+                  let model = '';
+                  switch (e.target.value) {
+                    case 'OpenAI':
+                      model = 'gpt-3.5-turbo';
+                      break;
+                    case 'Gemini':
+                      model = 'gemini-pro';
+                      break;
+                    case '硅基流动':
+                      model = 'gpt-3.5-turbo';
+                      break;
+                    case 'DeepSeek':
+                      model = 'deepseek-reasoner';
+                      break;
+                    default:
+                      model = '';
+                  }
                   setNewConfig({
                     ...newConfig,
                     provider: e.target.value,
-                    baseUrl: selectedProvider?.baseUrl || ''
+                    baseUrl: selectedProvider?.baseUrl || '',
+                    model: model
                   });
                 }}
               >
@@ -186,10 +204,28 @@ export const ApiConfigPanel = () => {
                 value={editingConfig.provider}
                 onChange={(e) => {
                   const selectedProvider = providers.find(p => p.value === e.target.value);
+                  let model = '';
+                  switch (e.target.value) {
+                    case 'OpenAI':
+                      model = 'gpt-3.5-turbo';
+                      break;
+                    case 'Gemini':
+                      model = 'gemini-pro';
+                      break;
+                    case '硅基流动':
+                      model = 'gpt-3.5-turbo';
+                      break;
+                    case 'DeepSeek':
+                      model = 'deepseek-reasoner';
+                      break;
+                    default:
+                      model = '';
+                  }
                   setEditingConfig({
                     ...editingConfig,
                     provider: e.target.value,
-                    baseUrl: selectedProvider?.baseUrl || ''
+                    baseUrl: selectedProvider?.baseUrl || '',
+                    model: model
                   });
                 }}
               >
