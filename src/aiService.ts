@@ -291,7 +291,16 @@ ${writingTechniqueHint ? `
 ${writingTechniqueHint}` : ''}
 ${hints ? `
 补充要求: ${hints}` : ''}
-请包含本卷的主要剧情、关键事件、人物发展等。`;
+请包含本卷的主要剧情、关键事件、人物发展等。
+
+【格式要求】
+请使用以下格式生成卷纲，每部分描述一个段落或章节范围的内容：
+
+- 第X章-第Y章：描述此范围内的大致剧情内容
+- 第Y+1章-第Z章：描述此范围内的大致剧情内容
+- ...
+
+注意：不需要详细到每一章，只需要描述章节范围和大致内容即可。`;
 };
 
 export const generateChaptersPrompt = (project: Project, volume: Volume, chapterCount: number, hints?: string) => {

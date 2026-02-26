@@ -598,10 +598,20 @@ export const ProjectDashboard = () => {
 
     const volume = currentProject.volumes.find(v => v.id === volumeId);
     if (volume) {
-      const startNum = volume.chapters.length + 1;
+      const sortedVolumes = [...currentProject.volumes].sort((a, b) => a.number - b.number);
+      const volumeIndex = sortedVolumes.findIndex(v => v.id === volume.id);
+      let startNum = 1;
+      if (volumeIndex > 0) {
+        const prevVolume = sortedVolumes[volumeIndex - 1];
+        if (prevVolume.chapters.length > 0) {
+          const maxPrevChapter = Math.max(...prevVolume.chapters.map(c => c.number));
+          startNum = maxPrevChapter + 1;
+        }
+      }
+      const startNumForThisVolume = startNum;
       chapters.forEach((ch, i) => {
         addChapter(volumeId, {
-          number: ch.number || (startNum + i),
+          number: ch.number || (startNumForThisVolume + i),
           title: ch.title,
           summary: ch.summary,
           wordCount: 0,
@@ -2377,7 +2387,16 @@ export const ProjectDashboard = () => {
                 </button>
               )}
               <button className="btn btn-primary" onClick={() => {
-                const startNum = selectedVolume.chapters.length + 1;
+                const sortedVolumes = [...currentProject.volumes].sort((a, b) => a.number - b.number);
+                const volumeIndex = sortedVolumes.findIndex(v => v.id === selectedVolume.id);
+                let startNum = 1;
+                if (volumeIndex > 0) {
+                  const prevVolume = sortedVolumes[volumeIndex - 1];
+                  if (prevVolume.chapters.length > 0) {
+                    const maxPrevChapter = Math.max(...prevVolume.chapters.map(c => c.number));
+                    startNum = maxPrevChapter + 1;
+                  }
+                }
                 const count = formData.chapterCount || 10;
                 for (let i = 0; i < count; i++) {
                   addChapter(selectedVolume.id, {
