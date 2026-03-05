@@ -548,7 +548,17 @@ export const ProjectDashboard = () => {
     
     try {
       // 尝试解析 JSON 格式
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      let jsonMatch = text.match(/\{[\s\S]*\}/);
+      
+      // 如果找不到完整的JSON，尝试找到第一个{和最后一个}之间的内容
+      if (!jsonMatch) {
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          jsonMatch = [text.substring(firstBrace, lastBrace + 1)];
+        }
+      }
+      
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         if (parsed.chapters && Array.isArray(parsed.chapters)) {
@@ -592,7 +602,7 @@ export const ProjectDashboard = () => {
     }
 
     if (chapters.length === 0) {
-      alert('未能解析出章节，请手动添加');
+      alert('未能解析出章节，请检查格式后重试。您也可以手动编辑AI生成结果来修复格式问题。');
       return;
     }
 
@@ -2375,8 +2385,23 @@ export const ProjectDashboard = () => {
             )}
             {formData.aiResult && (
               <div className="card" style={{ marginBottom: '1rem', background: '#eef2ff' }}>
-                <strong>AI 生成结果：</strong>
-                <pre style={{ whiteSpace: 'pre-wrap', marginTop: '0.5rem', maxHeight: '300px', overflow: 'auto' }}>{formData.aiResult}</pre>
+                <strong>AI 生成结果（可编辑）：</strong>
+                <textarea 
+                  style={{ 
+                    width: '100%', 
+                    minHeight: '300px',
+                    marginTop: '0.5rem', 
+                    padding: '0.5rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.85rem',
+                    whiteSpace: 'pre-wrap',
+                    resize: 'vertical'
+                  }}
+                  value={formData.aiResult}
+                  onChange={(e) => setFormData({ ...formData, aiResult: e.target.value })}
+                />
               </div>
             )}
             <div className="modal-footer">
