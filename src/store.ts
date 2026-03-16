@@ -121,6 +121,8 @@ interface StoreContextType {
   addChapter: (volumeId: string, chapter: Omit<Chapter, 'id' | 'createdAt' | 'updatedAt'>) => Chapter;
   updateChapter: (volumeId: string, chapterId: string, updates: Partial<Chapter>) => void;
   deleteChapter: (volumeId: string, chapterId: string) => void;
+  insertChapterAfter: (volumeId: string, afterChapterId: string, chapter: Omit<Chapter, 'id' | 'createdAt' | 'updatedAt'>) => Chapter;
+  renumberChapters: (volumeId: string) => void;
   addWritingStyle: (style: Omit<WritingStyle, 'id' | 'createdAt' | 'updatedAt'>) => WritingStyle;
   updateWritingStyle: (id: string, updates: Partial<WritingStyle>) => void;
   deleteWritingStyle: (id: string) => void;
@@ -564,21 +566,88 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const deleteChapter = (volumeId: string, chapterId: string) => {
-    updateProjectState(prev => ({
-      ...prev,
-      projects: prev.projects.map(p =>
-        p.id === prev.currentProjectId
-          ? {
-              ...p,
-              volumes: p.volumes.map(v =>
-                v.id === volumeId
-                  ? { ...v, chapters: v.chapters.filter(c => c.id !== chapterId) }
-                  : v
-              ),
-            }
-          : p
-      ),
-    }));
+    updateProjectState(prev => {
+      const newProjects = prev.projects.map(p => {
+        if (p.id !== prev.currentProjectId) return p;
+        
+        const newVolumes = p.volumes.map(v => {
+          if (v.id !== volumeId) return v;
+          
+          let newChapters = v.chapters.filter(c => c.id !== chapterId);
+          newChapters = newChapters
+            .sort((a, b) => a.number - b.number)
+            .map((c, idx) => ({ ...c, number: idx + 1 }));
+          
+          return { ...v, chapters: newChapters, updatedAt: Date.now() };
+        });
+        
+        return { ...p, volumes: newVolumes };
+      });
+      
+      return { ...prev, projects: newProjects };
+    });
+  };
+
+  const insertChapterAfter = (volumeId: string, afterChapterId: string, chapter: Omit<Chapter, 'id' | 'createdAt' | 'updatedAt'>): Chapter => {
+    const newChapter: Chapter = {
+      ...chapter,
+      id: generateId(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    
+    updateProjectState(prev => {
+      const newProjects = prev.projects.map(p => {
+        if (p.id !== prev.currentProjectId) return p;
+        
+        const newVolumes = p.volumes.map(v => {
+          if (v.id !== volumeId) return v;
+          
+          const afterChapterIndex = v.chapters.findIndex(c => c.id === afterChapterId);
+          let newChapters = [...v.chapters];
+          
+          if (afterChapterIndex === -1) {
+            newChapters = [newChapter, ...newChapters];
+          } else {
+            newChapters.splice(afterChapterIndex + 1, 0, newChapter);
+          }
+          
+          newChapters = newChapters
+            .sort((a, b) => a.number - b.number)
+            .map((c, idx) => ({ ...c, number: idx + 1 }));
+          
+          return { ...v, chapters: newChapters, updatedAt: Date.now() };
+        });
+        
+        return { ...p, volumes: newVolumes };
+      });
+      
+      return { ...prev, projects: newProjects };
+    });
+    
+    return newChapter;
+  };
+
+  const renumberChapters = (volumeId: string) => {
+    updateProjectState(prev => {
+      const newProjects = prev.projects.map(p => {
+        if (p.id !== prev.currentProjectId) return p;
+        
+        const newVolumes = p.volumes.map(v => {
+          if (v.id !== volumeId) return v;
+          
+          const newChapters = v.chapters
+            .sort((a, b) => a.number - b.number)
+            .map((c, idx) => ({ ...c, number: idx + 1, updatedAt: Date.now() }));
+          
+          return { ...v, chapters: newChapters, updatedAt: Date.now() };
+        });
+        
+        return { ...p, volumes: newVolumes };
+      });
+      
+      return { ...prev, projects: newProjects };
+    });
   };
 
   const addWritingStyle = (style: Omit<WritingStyle, 'id' | 'createdAt' | 'updatedAt'>): WritingStyle => {
@@ -757,6 +826,8 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
         addChapter,
         updateChapter,
         deleteChapter,
+        insertChapterAfter,
+        renumberChapters,
         addWritingStyle,
         updateWritingStyle,
         deleteWritingStyle,

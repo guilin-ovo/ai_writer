@@ -37,6 +37,8 @@ export const ProjectDashboard = () => {
     addChapter,
     updateChapter,
     deleteChapter,
+    insertChapterAfter,
+    renumberChapters,
     addWritingStyle,
     updateWritingStyle,
     deleteWritingStyle,
@@ -85,6 +87,7 @@ export const ProjectDashboard = () => {
     resolvedInChapterId?: string;
     examples?: string[];
     number?: number;
+    summary?: string;
   }>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
@@ -95,6 +98,7 @@ export const ProjectDashboard = () => {
   const [editingChapter, setEditingChapter] = useState<{ volume: Volume; chapter: Chapter } | null>(null);
   const [optimizedContent, setOptimizedContent] = useState('');
   const [showOptimization, setShowOptimization] = useState(false);
+  const [insertAfterChapter, setInsertAfterChapter] = useState<{ volume: Volume; chapter: Chapter } | null>(null);
   const [expandedVolumes, setExpandedVolumes] = useState<Record<string, boolean>>({});
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [selectedVolumeForOutline, setSelectedVolumeForOutline] = useState<Volume | null>(null);
@@ -1064,7 +1068,15 @@ export const ProjectDashboard = () => {
                     <div style={{ padding: '1rem' }}>
                       {volume.summary && <p style={{ color: '#666', marginBottom: '1rem' }}>{volume.summary}</p>}
                       <div>
-                        <h4 style={{ marginBottom: '0.5rem' }}>章节 ({volume.chapters.length})</h4>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <h4 style={{ marginBottom: 0 }}>章节 ({volume.chapters.length})</h4>
+                          <button 
+                            className="btn btn-small btn-secondary"
+                            onClick={() => renumberChapters(volume.id)}
+                          >
+                            重新编号
+                          </button>
+                        </div>
                         {volume.chapters.sort((a, b) => a.number - b.number).map(ch => (
                           <div key={ch.id} style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 0.75rem', borderRadius: '4px' }}>
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1073,6 +1085,16 @@ export const ProjectDashboard = () => {
                               <span style={{ color: '#888', fontSize: '0.85rem' }}>{ch.wordCount} 字</span>
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                className="btn btn-small btn-secondary"
+                                onClick={() => {
+                                  setInsertAfterChapter({ volume, chapter: ch });
+                                  setFormData({ title: '新章节' });
+                                  setShowModal('insertChapter');
+                                }}
+                              >
+                                + 插入
+                              </button>
                               <button
                                 className="btn btn-small btn-secondary"
                                 onClick={() => setEditingChapter({ volume, chapter: ch })}
@@ -2499,6 +2521,53 @@ export const ProjectDashboard = () => {
                 updateChapter(editingChapter.volume.id, editingChapter.chapter.id, editingChapter.chapter);
                 setEditingChapter(null);
               }}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'insertChapter' && insertAfterChapter && (
+        <div className="modal-overlay" onClick={() => { setShowModal(null); setInsertAfterChapter(null); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>插入新章节</h3>
+              <button className="btn btn-secondary btn-small" onClick={() => { setShowModal(null); setInsertAfterChapter(null); }}>×</button>
+            </div>
+            <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#eef2ff', borderRadius: '8px' }}>
+              <strong>将插入在第{insertAfterChapter.chapter.number}章之后</strong>
+            </div>
+            <div className="form-group">
+              <label>标题</label>
+              <input
+                type="text"
+                value={formData.title || ''}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="新章节标题"
+              />
+            </div>
+            <div className="form-group">
+              <label>章节简介（可选）</label>
+              <textarea
+                value={formData.summary || ''}
+                onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                placeholder="章节简介"
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => { setShowModal(null); setInsertAfterChapter(null); }}>取消</button>
+              <button className="btn btn-primary" onClick={() => {
+                if (formData.title) {
+                  insertChapterAfter(insertAfterChapter.volume.id, insertAfterChapter.chapter.id, {
+                    number: insertAfterChapter.chapter.number + 1,
+                    title: formData.title,
+                    summary: formData.summary || '',
+                    wordCount: 0,
+                    status: 'draft',
+                  });
+                  setShowModal(null);
+                  setInsertAfterChapter(null);
+                }
+              }}>插入</button>
             </div>
           </div>
         </div>
