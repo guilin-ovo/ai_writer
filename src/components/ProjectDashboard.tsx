@@ -12,9 +12,10 @@ import {
   generateOrganizationPrompt,
   generateOptimizeContentPrompt,
   generateForeshadowsPrompt,
+  generateTasksPrompt,
 } from '../aiService';
 
-type Tab = 'characters' | 'organizations' | 'worldview' | 'outlines' | 'volumes' | 'writing' | 'styles' | 'foreshadows' | 'stats';
+type Tab = 'characters' | 'organizations' | 'worldview' | 'outlines' | 'volumes' | 'writing' | 'styles' | 'foreshadows' | 'tasks' | 'stats';
 
 export const ProjectDashboard = () => {
   const {
@@ -46,6 +47,9 @@ export const ProjectDashboard = () => {
     addForeshadow,
     updateForeshadow,
     deleteForeshadow,
+    addTask,
+    updateTask,
+    deleteTask,
     getDefaultApiConfig,
   } = useStore();
 
@@ -81,13 +85,18 @@ export const ProjectDashboard = () => {
     foreshadowCount?: number;
     aiResult?: string;
     volumeId?: string;
-    status?: 'set' | 'unresolved' | 'resolved';
+    chapterId?: string;
+    status?: 'set' | 'unresolved' | 'resolved' | 'pending' | 'in_progress' | 'completed';
     resolutionDescription?: string;
     resolvedInVolumeId?: string;
     resolvedInChapterId?: string;
     examples?: string[];
     number?: number;
     summary?: string;
+    requirements?: string;
+    rewards?: string;
+    participants?: string;
+    priority?: 'low' | 'medium' | 'high';
   }>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
@@ -335,6 +344,56 @@ export const ProjectDashboard = () => {
         }
       } catch (e) {
         console.log('解析AI生成的伏笔失败:', e);
+      }
+    } catch (e) {
+      alert('生成失败: ' + (e as Error).message);
+    } finally {
+      setIsGenerating(false);
+      setGeneratedContent('');
+    }
+  };
+
+  const handleGenerateTasks = async (volume: Volume, chapter: Chapter) => {
+    if (!apiConfig) {
+      alert('请先配置 API');
+      return;
+    }
+    if (!chapter.content) {
+      alert('该章节没有内容');
+      return;
+    }
+    setIsGenerating(true);
+    setGeneratedContent('生成中，请稍候...');
+    try {
+      const prompt = generateTasksPrompt(currentProject, chapter.content, aiHint);
+      const result = await generateWithAI(apiConfig, prompt, undefined, false);
+      
+      try {
+        const jsonMatch = result.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.tasks && Array.isArray(parsed.tasks)) {
+            parsed.tasks.forEach((task: any) => {
+              addTask({
+                title: task.title || '',
+                requirements: task.requirements || '',
+                location: task.location || '',
+                rewards: task.rewards || '',
+                participants: task.participants || '',
+                leader: task.leader || '',
+                description: task.description || '',
+                priority: task.priority || 'medium',
+                status: 'pending',
+                sourceChapterId: chapter.id,
+                sourceVolumeId: volume.id
+              });
+            });
+            alert(`成功添加 ${parsed.tasks.length} 个任务`);
+          }
+        }
+      } catch (e) {
+        console.log('解析AI生成的任务失败:', e);
+        alert('解析任务失败，请手动添加');
       }
     } catch (e) {
       alert('生成失败: ' + (e as Error).message);
@@ -1309,6 +1368,34 @@ export const ProjectDashboard = () => {
                     </div>
                   )}
 
+                  {(() => {
+                    const activeTasks = currentProject.tasks.filter(t => t.status !== 'completed');
+                    if (activeTasks.length === 0) return null;
+                    
+                    const tasksText = activeTasks.map(t => t.title).join(' · ');
+                    return (
+                      <div style={{ 
+                        background: '#f0fdf4', 
+                        padding: '0.75rem 1rem', 
+                        borderRadius: '8px', 
+                        marginBottom: '1rem',
+                        border: '1px solid #bbf7d0'
+                      }}>
+                        <strong style={{ color: '#166534' }}>当前任务目标:</strong>{' '}
+                        <span style={{ 
+                          color: '#166534',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical'
+                        }}>
+                          {tasksText}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
                   {showOptimization ? (
                     <div style={{ display: 'flex', gap: '1rem' }}>
                       <div style={{ flex: 1 }}>
@@ -1316,7 +1403,7 @@ export const ProjectDashboard = () => {
                         <textarea
                           style={{
                             width: '100%',
-                            height: '400px',
+                            minHeight: '400px',
                             padding: '1rem',
                             border: '1px solid #ddd',
                             borderRadius: '8px',
@@ -1332,7 +1419,7 @@ export const ProjectDashboard = () => {
                         <textarea
                           style={{
                             width: '100%',
-                            height: '400px',
+                            minHeight: '400px',
                             padding: '1rem',
                             border: '1px solid #ddd',
                             borderRadius: '8px',
@@ -1349,6 +1436,7 @@ export const ProjectDashboard = () => {
                       value={chapterContent}
                       onChange={(e) => setChapterContent(e.target.value)}
                       placeholder="开始写作..."
+                      style={{ resize: 'vertical' }}
                     />
                   )}
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1606,6 +1694,210 @@ export const ProjectDashboard = () => {
           </div>
         );
 
+      case 'tasks':
+        const pendingTasks = currentProject.tasks.filter(t => t.status === 'pending');
+        const inProgressTasks = currentProject.tasks.filter(t => t.status === 'in_progress');
+        const completedTasks = currentProject.tasks.filter(t => t.status === 'completed');
+        
+        return (
+          <div>
+            <div className="card-header">
+              <h2>任务/支线管理</h2>
+              <button className="btn btn-primary" onClick={() => {
+                setFormData({ 
+                  title: '', 
+                  requirements: '', 
+                  location: '', 
+                  rewards: '', 
+                  participants: '', 
+                  leader: '', 
+                  description: '',
+                  priority: 'medium',
+                  status: 'pending'
+                });
+                setShowModal('task');
+              }}>
+                + 添加任务
+              </button>
+            </div>
+
+            <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+              <div className="stat-card">
+                <h4>待处理任务</h4>
+                <p style={{ color: '#f59e0b' }}>{pendingTasks.length}</p>
+              </div>
+              <div className="stat-card">
+                <h4>进行中任务</h4>
+                <p style={{ color: '#3b82f6' }}>{inProgressTasks.length}</p>
+              </div>
+              <div className="stat-card">
+                <h4>已完成任务</h4>
+                <p style={{ color: '#10b981' }}>{completedTasks.length}</p>
+              </div>
+            </div>
+
+            {apiConfig && (
+              <div className="card" style={{ marginBottom: '1.5rem' }}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>选择卷</label>
+                    <select 
+                      value={formData.volumeId || ''} 
+                      onChange={(e) => {
+                        setFormData({ ...formData, volumeId: e.target.value, chapterId: '' });
+                      }}
+                    >
+                      <option value="">请选择卷</option>
+                      {currentProject.volumes.map(v => (
+                        <option key={v.id} value={v.id}>第{v.number}卷: {v.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>选择章节（发布任务的章节）</label>
+                    <select 
+                      value={formData.chapterId || ''} 
+                      onChange={(e) => setFormData({ ...formData, chapterId: e.target.value })}
+                      disabled={!formData.volumeId}
+                    >
+                      <option value="">请选择章节</option>
+                      {formData.volumeId && currentProject.volumes.find(v => v.id === formData.volumeId)?.chapters.map(c => (
+                        <option key={c.id} value={c.id}>第{c.number}章: {c.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>AI 生成提示（可选）</label>
+                  <input 
+                    type="text" 
+                    value={aiHint} 
+                    onChange={(e) => setAiHint(e.target.value)} 
+                    placeholder="补充说明..." 
+                  />
+                </div>
+                <button 
+                  className="btn btn-ai" 
+                  onClick={() => {
+                    const volume = formData.volumeId ? currentProject.volumes.find(v => v.id === formData.volumeId) : undefined;
+                    const chapter = volume && formData.chapterId ? volume.chapters.find(c => c.id === formData.chapterId) : undefined;
+                    if (volume && chapter) {
+                      handleGenerateTasks(volume, chapter);
+                    } else {
+                      alert('请选择卷和章节');
+                    }
+                  }} 
+                  disabled={isGenerating || !formData.volumeId || !formData.chapterId}
+                >
+                  {isGenerating ? '生成中...' : '✨ AI 分析章节找任务'}
+                </button>
+              </div>
+            )}
+
+            {isGenerating && (
+              <div className="generating">
+                <div className="spinner"></div>
+                <div>
+                  <p>正在生成...</p>
+                  <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>{generatedContent}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid">
+              {[...currentProject.tasks].reverse().map(task => (
+                <div key={task.id} className="list-item">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                    <div>
+                      <h3>{task.title}</h3>
+                      <span className={`tag ${
+                        task.status === 'completed' ? 'tag-success' : 
+                        task.status === 'in_progress' ? 'tag-warning' : ''
+                      }`}>
+                        {task.status === 'pending' ? '待处理' : task.status === 'in_progress' ? '进行中' : '已完成'}
+                      </span>
+                      {task.priority && (
+                        <span className="tag" style={{ 
+                          background: task.priority === 'high' ? '#fee2e2' : task.priority === 'medium' ? '#fef3c7' : '#e0e7ff',
+                          color: task.priority === 'high' ? '#991b1b' : task.priority === 'medium' ? '#92400e' : '#3730a3'
+                        }}>
+                          {task.priority === 'high' ? '高优先级' : task.priority === 'medium' ? '中优先级' : '低优先级'}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                      <button 
+                        className="btn btn-small btn-secondary" 
+                        onClick={() => {
+                          const newStatus = task.status === 'pending' ? 'in_progress' : 
+                                           task.status === 'in_progress' ? 'completed' : 'pending';
+                          updateTask(task.id, { status: newStatus });
+                        }}
+                      >
+                        {task.status === 'pending' ? '开始' : task.status === 'in_progress' ? '完成' : '重开'}
+                      </button>
+                      <button className="btn btn-small btn-secondary" onClick={() => {
+                        setEditingItem(task);
+                        setFormData({ ...task });
+                        setShowModal('task');
+                      }}>
+                        编辑
+                      </button>
+                      <button className="btn btn-small btn-danger" onClick={() => {
+                        if (confirm('确定删除这个任务？')) deleteTask(task.id);
+                      }}>
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                  {task.requirements && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <strong>要求:</strong>
+                      <p style={{ 
+                        color: '#666', 
+                        marginTop: '0.25rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical'
+                      }}>
+                        {task.requirements}
+                      </p>
+                    </div>
+                  )}
+                  {task.location && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <strong>地点:</strong> {task.location}
+                    </div>
+                  )}
+                  {task.rewards && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <strong>奖励:</strong> {task.rewards}
+                    </div>
+                  )}
+                  {task.participants && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <strong>关联人物:</strong> {task.participants}
+                    </div>
+                  )}
+                  {task.leader && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <strong>领队:</strong> {task.leader}
+                    </div>
+                  )}
+                  {task.sourceChapterId && task.sourceVolumeId && (
+                    <div style={{ marginTop: '0.5rem', color: '#888', fontSize: '0.85rem' }}>
+                      来源: 第{currentProject.volumes.find(v => v.id === task.sourceVolumeId)?.number}卷
+                      第{currentProject.volumes.find(v => v.id === task.sourceVolumeId)?.chapters.find(c => c.id === task.sourceChapterId)?.number}章
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
       case 'stats':
         const totalForeshadows = currentProject.foreshadows.length;
         const unresolvedForeshadowsCount = currentProject.foreshadows.filter(f => f.status !== 'resolved').length;
@@ -1745,6 +2037,9 @@ export const ProjectDashboard = () => {
           </button>
           <button className={activeTab === 'foreshadows' ? 'active' : ''} onClick={() => setActiveTab('foreshadows')}>
             🔮 伏笔
+          </button>
+          <button className={activeTab === 'tasks' ? 'active' : ''} onClick={() => setActiveTab('tasks')}>
+            🎯 任务/支线
           </button>
           <button className={activeTab === 'styles' ? 'active' : ''} onClick={() => setActiveTab('styles')}>
             ✨ 文笔风格
@@ -2050,13 +2345,21 @@ export const ProjectDashboard = () => {
                   return;
                 }
                 if (editingItem) {
-                  updateForeshadow(editingItem.id, formData);
+                  updateForeshadow(editingItem.id, {
+                    title: formData.title,
+                    description: formData.description,
+                    volumeId: formData.volumeId,
+                    status: formData.status as 'set' | 'unresolved' | 'resolved' | undefined,
+                    resolutionDescription: formData.resolutionDescription,
+                    resolvedInVolumeId: formData.resolvedInVolumeId,
+                    resolvedInChapterId: formData.resolvedInChapterId
+                  });
                 } else {
                   addForeshadow({
                     title: formData.title || '',
                     description: formData.description || '',
                     volumeId: formData.volumeId || undefined,
-                    status: formData.status || 'unresolved',
+                    status: (formData.status as 'set' | 'unresolved' | 'resolved') || 'unresolved',
                     resolutionDescription: formData.resolutionDescription || undefined,
                     resolvedInVolumeId: formData.resolvedInVolumeId || undefined,
                     resolvedInChapterId: formData.resolvedInChapterId || undefined
@@ -2324,6 +2627,103 @@ export const ProjectDashboard = () => {
                   updateWritingStyle(editingItem.id, { ...formData, examples: filteredExamples });
                 } else {
                   addWritingStyle({ name: formData.name || '', examples: filteredExamples, isPreset: false });
+                }
+                setShowModal(null);
+                setEditingItem(null);
+              }}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'task' && (
+        <div className="modal-overlay" onClick={() => { setShowModal(null); setEditingItem(null); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <div className="modal-header">
+              <h3>{editingItem ? '编辑任务' : '添加任务'}</h3>
+              <button className="btn btn-secondary btn-small" onClick={() => { setShowModal(null); setEditingItem(null); }}>×</button>
+            </div>
+            <div className="form-group">
+              <label>任务标题 *</label>
+              <input type="text" value={formData.title || ''} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>任务要求</label>
+              <textarea value={formData.requirements || ''} onChange={(e) => setFormData({ ...formData, requirements: e.target.value })} />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>地点</label>
+                <input type="text" value={formData.location || ''} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>奖励</label>
+                <input type="text" value={formData.rewards || ''} onChange={(e) => setFormData({ ...formData, rewards: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>关联人物</label>
+                <input type="text" value={formData.participants || ''} onChange={(e) => setFormData({ ...formData, participants: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>领队</label>
+                <input type="text" value={formData.leader || ''} onChange={(e) => setFormData({ ...formData, leader: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>优先级</label>
+                <select value={formData.priority || 'medium'} onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}>
+                  <option value="low">低优先级</option>
+                  <option value="medium">中优先级</option>
+                  <option value="high">高优先级</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>状态</label>
+                <select value={formData.status || 'pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}>
+                  <option value="pending">待处理</option>
+                  <option value="in_progress">进行中</option>
+                  <option value="completed">已完成</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>其他描述</label>
+              <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => { setShowModal(null); setEditingItem(null); }}>取消</button>
+              <button className="btn btn-primary" onClick={() => {
+                if (!formData.title) {
+                  alert('请输入任务标题');
+                  return;
+                }
+                if (editingItem) {
+                  updateTask(editingItem.id, {
+                    title: formData.title,
+                    requirements: formData.requirements,
+                    location: formData.location,
+                    rewards: formData.rewards,
+                    participants: formData.participants,
+                    leader: formData.leader,
+                    description: formData.description,
+                    priority: formData.priority as 'low' | 'medium' | 'high' | undefined,
+                    status: formData.status as 'pending' | 'in_progress' | 'completed' | undefined
+                  });
+                } else {
+                  addTask({
+                    title: formData.title || '',
+                    requirements: formData.requirements || '',
+                    location: formData.location || '',
+                    rewards: formData.rewards || '',
+                    participants: formData.participants || '',
+                    leader: formData.leader || '',
+                    description: formData.description || '',
+                    priority: formData.priority as 'low' | 'medium' | 'high' || 'medium',
+                    status: (formData.status as 'pending' | 'in_progress' | 'completed') || 'pending'
+                  });
                 }
                 setShowModal(null);
                 setEditingItem(null);

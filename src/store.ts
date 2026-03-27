@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { AppState, Project, Character, Organization, Worldview, Outline, Volume, Chapter, ApiConfig, WritingStyle, Foreshadow } from './types';
+import { AppState, Project, Character, Organization, Worldview, Outline, Volume, Chapter, ApiConfig, WritingStyle, Foreshadow, Task } from './types';
 import { getItem, setItem } from './localStorageService.ts';
 
 const STORAGE_KEY = 'ai_author_data';
@@ -130,6 +130,9 @@ interface StoreContextType {
   addForeshadow: (foreshadow: Omit<Foreshadow, 'id' | 'createdAt' | 'updatedAt'>) => Foreshadow;
   updateForeshadow: (id: string, updates: Partial<Foreshadow>) => void;
   deleteForeshadow: (id: string) => void;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Task;
+  updateTask: (id: string, updates: Partial<Task>) => void;
+  deleteTask: (id: string) => void;
   addApiConfig: (config: Omit<ApiConfig, 'id' | 'createdAt' | 'updatedAt'>) => ApiConfig;
   updateApiConfig: (id: string, updates: Partial<ApiConfig>) => void;
   deleteApiConfig: (id: string) => void;
@@ -160,10 +163,13 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
                 newProject.selectedWritingStyleId = undefined;
               }
               if (!newProject.foreshadows) {
-                newProject.foreshadows = [];
-              }
-              return newProject;
-            });
+              newProject.foreshadows = [];
+            }
+            if (!newProject.tasks) {
+              newProject.tasks = [];
+            }
+            return newProject;
+          });
           }
           setState(saved);
           console.log('=== [store.ts] State updated from loaded data ===');
@@ -251,6 +257,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       writingStyles: getPresetWritingStyles(),
       selectedWritingStyleId: undefined,
       foreshadows: [],
+      tasks: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -755,6 +762,51 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     }));
   };
 
+  const addTask = (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Task => {
+    const newTask: Task = {
+      ...task,
+      id: generateId(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    updateProjectState(prev => ({
+      ...prev,
+      projects: prev.projects.map(p =>
+        p.id === prev.currentProjectId
+          ? { ...p, tasks: [...p.tasks, newTask] }
+          : p
+      ),
+    }));
+    return newTask;
+  };
+
+  const updateTask = (id: string, updates: Partial<Task>) => {
+    updateProjectState(prev => ({
+      ...prev,
+      projects: prev.projects.map(p =>
+        p.id === prev.currentProjectId
+          ? {
+              ...p,
+              tasks: p.tasks.map(t =>
+                t.id === id ? { ...t, ...updates, updatedAt: Date.now() } : t
+              ),
+            }
+          : p
+      ),
+    }));
+  };
+
+  const deleteTask = (id: string) => {
+    updateProjectState(prev => ({
+      ...prev,
+      projects: prev.projects.map(p =>
+        p.id === prev.currentProjectId
+          ? { ...p, tasks: p.tasks.filter(t => t.id !== id) }
+          : p
+      ),
+    }));
+  };
+
   const addApiConfig = (config: Omit<ApiConfig, 'id' | 'createdAt' | 'updatedAt'>): ApiConfig => {
     const newConfig: ApiConfig = {
       ...config,
@@ -835,6 +887,9 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
         addForeshadow,
         updateForeshadow,
         deleteForeshadow,
+        addTask,
+        updateTask,
+        deleteTask,
         addApiConfig,
         updateApiConfig,
         deleteApiConfig,

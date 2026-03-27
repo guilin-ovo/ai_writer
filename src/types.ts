@@ -106,6 +106,23 @@ export interface Foreshadow {
   updatedAt: number;
 }
 
+export interface Task {
+  id: string;
+  title: string;
+  requirements?: string;
+  location?: string;
+  rewards?: string;
+  participants?: string;
+  leader?: string;
+  description?: string;
+  priority?: 'low' | 'medium' | 'high';
+  status: 'pending' | 'in_progress' | 'completed';
+  sourceChapterId?: string;
+  sourceVolumeId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -120,6 +137,7 @@ export interface Project {
   writingStyles: WritingStyle[];
   selectedWritingStyleId?: string;
   foreshadows: Foreshadow[];
+  tasks: Task[];
   createdAt: number;
   updatedAt: number;
 }

@@ -1,4 +1,4 @@
-import { ApiConfig, Project,  Volume, Chapter, WritingStyle } from './types';
+import { ApiConfig, Project,  Volume, Chapter, WritingStyle, Task } from './types';
 
 export const generateWithAI = async (
   config: ApiConfig,
@@ -185,6 +185,63 @@ export const buildProjectContext = (project: Project, volume?: Volume) => {
     parts.push(`  ${volume.summary}`);
   }
 
+  const incompleteTasks = project.tasks.filter(t => t.status !== 'completed');
+  if (incompleteTasks.length > 0) {
+    parts.push('\n【当前任务目标】');
+    incompleteTasks.forEach(task => {
+      parts.push(`- ${task.title}`);
+      if (task.requirements) parts.push(`  要求: ${task.requirements}`);
+      if (task.location) parts.push(`  地点: ${task.location}`);
+    });
+  }
+
+  return parts.join('\n');
+};
+
+export const generateTasksPrompt = (project: Project, chapterContent: string, hints?: string) => {
+  const context = buildProjectContext(project);
+  return `${context}
+
+【章节内容】
+${chapterContent}
+
+请仔细阅读以上章节内容，分析其中发布的任务/支线任务。
+
+**返回格式要求**：
+请严格按照以下JSON格式返回，不要有任何其他文字：
+{
+  "tasks": [
+    {
+      "title": "任务标题",
+      "requirements": "任务要求（详细描述）",
+      "location": "任务地点",
+      "rewards": "任务奖励",
+      "participants": "参加人",
+      "leader": "带队人",
+      "description": "其他描述",
+      "priority": "high"
+    }
+  ]
+}
+
+${hints ? `补充要求: ${hints}` : ''}
+
+**重要**：
+1. 只返回有效的JSON数据，不要包含其他说明文字
+2. priority 字段值为：low（低）、medium（中）、high（高）
+3. 如果某个字段没有信息，可以为空字符串或省略
+4. 从章节内容中提取所有能识别的任务信息`;
+};
+
+export const getActiveTasksText = (tasks: Task[]) => {
+  const activeTasks = tasks.filter(t => t.status !== 'completed');
+  if (activeTasks.length === 0) return '';
+  
+  const parts = ['【当前任务目标】'];
+  activeTasks.forEach(task => {
+    parts.push(`- ${task.title}`);
+    if (task.requirements) parts.push(`  要求: ${task.requirements}`);
+  });
   return parts.join('\n');
 };
 
