@@ -1131,7 +1131,7 @@ export const ProjectDashboard = () => {
                           <h4 style={{ marginBottom: 0 }}>章节 ({volume.chapters.length})</h4>
                           <button 
                             className="btn btn-small btn-secondary"
-                            onClick={() => renumberChapters(volume.id)}
+                            onClick={() => renumberChapters()}
                           >
                             重新编号
                           </button>

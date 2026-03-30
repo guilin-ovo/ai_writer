@@ -122,7 +122,7 @@ interface StoreContextType {
   updateChapter: (volumeId: string, chapterId: string, updates: Partial<Chapter>) => void;
   deleteChapter: (volumeId: string, chapterId: string) => void;
   insertChapterAfter: (volumeId: string, afterChapterId: string, chapter: Omit<Chapter, 'id' | 'createdAt' | 'updatedAt'>) => Chapter;
-  renumberChapters: (volumeId: string) => void;
+  renumberChapters: () => void;
   addWritingStyle: (style: Omit<WritingStyle, 'id' | 'createdAt' | 'updatedAt'>) => WritingStyle;
   updateWritingStyle: (id: string, updates: Partial<WritingStyle>) => void;
   deleteWritingStyle: (id: string) => void;
@@ -572,22 +572,33 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     }));
   };
 
+  const renumberAllChapters = (volumes: Volume[]): Volume[] => {
+    const sortedVolumes = [...volumes].sort((a, b) => a.number - b.number);
+    let globalChapterNumber = 1;
+    
+    return sortedVolumes.map(volume => {
+      const sortedChapters = [...volume.chapters].sort((a, b) => a.number - b.number);
+      const newChapters = sortedChapters.map(chapter => ({
+        ...chapter,
+        number: globalChapterNumber++,
+        updatedAt: Date.now()
+      }));
+      return { ...volume, chapters: newChapters, updatedAt: Date.now() };
+    });
+  };
+
   const deleteChapter = (volumeId: string, chapterId: string) => {
     updateProjectState(prev => {
       const newProjects = prev.projects.map(p => {
         if (p.id !== prev.currentProjectId) return p;
         
-        const newVolumes = p.volumes.map(v => {
+        let newVolumes = p.volumes.map(v => {
           if (v.id !== volumeId) return v;
-          
-          let newChapters = v.chapters.filter(c => c.id !== chapterId);
-          newChapters = newChapters
-            .sort((a, b) => a.number - b.number)
-            .map((c, idx) => ({ ...c, number: idx + 1 }));
-          
-          return { ...v, chapters: newChapters, updatedAt: Date.now() };
+          const newChapters = v.chapters.filter(c => c.id !== chapterId);
+          return { ...v, chapters: newChapters };
         });
         
+        newVolumes = renumberAllChapters(newVolumes);
         return { ...p, volumes: newVolumes };
       });
       
@@ -607,7 +618,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       const newProjects = prev.projects.map(p => {
         if (p.id !== prev.currentProjectId) return p;
         
-        const newVolumes = p.volumes.map(v => {
+        let newVolumes = p.volumes.map(v => {
           if (v.id !== volumeId) return v;
           
           const afterChapterIndex = v.chapters.findIndex(c => c.id === afterChapterId);
@@ -619,13 +630,10 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
             newChapters.splice(afterChapterIndex + 1, 0, newChapter);
           }
           
-          newChapters = newChapters
-            .sort((a, b) => a.number - b.number)
-            .map((c, idx) => ({ ...c, number: idx + 1 }));
-          
-          return { ...v, chapters: newChapters, updatedAt: Date.now() };
+          return { ...v, chapters: newChapters };
         });
         
+        newVolumes = renumberAllChapters(newVolumes);
         return { ...p, volumes: newVolumes };
       });
       
@@ -635,21 +643,12 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     return newChapter;
   };
 
-  const renumberChapters = (volumeId: string) => {
+  const renumberChapters = () => {
     updateProjectState(prev => {
       const newProjects = prev.projects.map(p => {
         if (p.id !== prev.currentProjectId) return p;
         
-        const newVolumes = p.volumes.map(v => {
-          if (v.id !== volumeId) return v;
-          
-          const newChapters = v.chapters
-            .sort((a, b) => a.number - b.number)
-            .map((c, idx) => ({ ...c, number: idx + 1, updatedAt: Date.now() }));
-          
-          return { ...v, chapters: newChapters, updatedAt: Date.now() };
-        });
-        
+        const newVolumes = renumberAllChapters(p.volumes);
         return { ...p, volumes: newVolumes };
       });
       
