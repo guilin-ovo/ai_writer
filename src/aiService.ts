@@ -406,7 +406,7 @@ export const generateChapterContentPrompt = (project: Project, volume: Volume, c
 第${nextChapter.number}章: ${nextChapter.title}
 简介: ${nextChapter.summary}
 
-重要：请在本章结尾处为下一章的情节做好铺垫，确保章节之间自然过渡和衔接。`;
+重要：请在本章结尾处为下一章的情节做好铺垫，确保章节之间自然过渡和衔接，不要写下一章的内容。`;
   }
 
   let wordCountHint = '';
